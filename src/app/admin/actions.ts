@@ -165,7 +165,6 @@ export async function publishDraw(formData: FormData) {
     .insert({
       month_year: sim.month_year,
       winning_numbers: sim.winning_numbers,
-      logic_type: sim.logic_type,
       status: 'published',
       prize_pool: sim.prize_pool
     })
