@@ -223,36 +223,35 @@ export async function processWinnerClaim(formData: FormData) {
 
 // === PHASE 3: CHARITY CRUD ===
 export async function addCharity(formData: FormData) {
-  try {
-    await getAdminUser()
-    const name = formData.get('name') as string
-    const details = formData.get('details') as string
-    const imageUrl = formData.get('imageUrl') as string || 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb0?w=800&q=80'
+  await getAdminUser()
+  const name = formData.get('name') as string
+  const details = formData.get('details') as string
+  const imageUrl = formData.get('imageUrl') as string || 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb0?w=800&q=80'
 
-    if (!name || !details) throw new Error('Charity Name and Mission are required')
+  if (!name || !details) redirect('/admin?charityError=Name+and+Mission+are+required')
 
-    const { error } = await supabaseAdmin.from('charities').insert({ name, details, image_url: imageUrl })
-    if (error) throw new Error(`Database error: ${error.message}`)
-
-    revalidatePath('/admin')
-  } catch (err: any) {
-    console.error("Add charity failed:", err)
-    redirect(`/admin?charityError=${encodeURIComponent(err.message)}`)
+  const { error } = await supabaseAdmin.from('charities').insert({ name, details, image_url: imageUrl })
+  
+  if (error) {
+    console.error("Add charity failed:", error)
+    redirect(`/admin?charityError=${encodeURIComponent(error.message)}`)
   }
+
+  revalidatePath('/admin')
   redirect('/admin')
 }
 
 export async function deleteCharity(formData: FormData) {
-  try {
-    await getAdminUser()
-    const id = formData.get('id') as string
-    const { error } = await supabaseAdmin.from('charities').delete().eq('id', id)
-    if (error) throw new Error(`Failed to delete charity: ${error.message}`)
-
-    revalidatePath('/admin')
-  } catch (err: any) {
-    console.error("Delete charity failed:", err)
-    redirect(`/admin?charityError=${encodeURIComponent(err.message)}`)
+  await getAdminUser()
+  const id = formData.get('id') as string
+  
+  const { error } = await supabaseAdmin.from('charities').delete().eq('id', id)
+  
+  if (error) {
+    console.error("Delete charity failed:", error)
+    redirect(`/admin?charityError=${encodeURIComponent(error.message)}`)
   }
+
+  revalidatePath('/admin')
   redirect('/admin')
 }
