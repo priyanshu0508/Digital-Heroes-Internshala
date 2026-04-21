@@ -47,7 +47,7 @@ export async function calculateSimulationData(logicType: 'random' | 'algorithmic
   // Calculate previous month string
   const d = new Date()
   d.setMonth(d.getMonth() - 1)
-  const prevMonth = d.toLocaleString('en-GB', { month: 'short', year: 'numeric' })
+  const prevMonth = getMonthYear(d)
   
   const { data: prevDraw } = await supabaseAdmin
     .from('draws')
