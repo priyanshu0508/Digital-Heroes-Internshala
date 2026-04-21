@@ -267,6 +267,14 @@ export default async function AdminPage(props: { searchParams: Promise<{ simulat
             <h3 className="font-bold mb-4 flex items-center gap-2">
               <Gift className="w-4 h-4 text-pink-400" /> Charity Directory Management
             </h3>
+
+            {searchParams?.charityError && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded flex items-center gap-2 text-red-500 text-xs">
+                <XCircle className="w-4 h-4" />
+                <span>{searchParams.charityError}</span>
+              </div>
+            )}
+
             <div className="grid md:grid-cols-3 gap-6">
                <div className="md:col-span-1 md:border-r border-[var(--color-border)] md:pr-4">
                  <h4 className="text-sm font-bold mb-3 text-[var(--color-muted)]">Add New Charity</h4>
