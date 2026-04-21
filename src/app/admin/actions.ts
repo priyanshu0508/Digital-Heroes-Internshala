@@ -239,6 +239,7 @@ export async function addCharity(formData: FormData) {
     console.error("Add charity failed:", err)
     redirect(`/admin?charityError=${encodeURIComponent(err.message)}`)
   }
+  redirect('/admin')
 }
 
 export async function deleteCharity(formData: FormData) {
@@ -253,4 +254,5 @@ export async function deleteCharity(formData: FormData) {
     console.error("Delete charity failed:", err)
     redirect(`/admin?charityError=${encodeURIComponent(err.message)}`)
   }
+  redirect('/admin')
 }
