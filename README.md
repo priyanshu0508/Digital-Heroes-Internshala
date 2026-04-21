@@ -215,10 +215,4 @@ This project is deployed on **Vercel** and connected to the GitHub repository. E
 
 ---
 
-## 📄 License
-
-MIT License — See `LICENSE` file for details.
-
----
-
 *Built for the Digital Heroes Internshala Internship Challenge.*
