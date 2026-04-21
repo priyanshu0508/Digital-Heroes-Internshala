@@ -155,7 +155,7 @@ export async function publishDraw(formData: FormData) {
     .from('draws')
     .select('id')
     .eq('month_year', sim.month_year)
-    .single()
+    .maybeSingle()
   
   if (existing) throw new Error('Already published!')
 

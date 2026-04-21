@@ -6,7 +6,7 @@ import { Users, DollarSign, Dices, Gift, CheckCircle, XCircle } from 'lucide-rea
 import { formatCurrency, getMonthYear } from '@/lib/utils'
 import { calculateSimulationData, publishDraw, processWinnerClaim, addCharity, deleteCharity } from './actions'
 
-export default async function AdminPage(props: { searchParams: Promise<{ simulate?: string, logic?: string }> }) {
+export default async function AdminPage(props: { searchParams: Promise<{ simulate?: string, logic?: string, charityError?: string }> }) {
   const searchParams = await props.searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
