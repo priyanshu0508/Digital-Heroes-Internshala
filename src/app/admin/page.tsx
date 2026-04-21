@@ -291,7 +291,7 @@ export default async function AdminPage(props: { searchParams: Promise<{ simulat
                      <div key={c.id} className="p-3 bg-[var(--color-surface)] rounded border border-[var(--color-border)] flex justify-between items-start hover:border-pink-500/30 transition-colors">
                        <div className="pr-4 shrink min-w-0">
                          <p className="font-bold text-sm truncate">{c.name}</p>
-                         <p className="text-[10px] text-[var(--color-muted)] line-clamp-2 mt-1">{c.details}</p>
+                         <p className="text-[10px] text-[var(--color-muted)] line-clamp-2 mt-1">{c.description}</p>
                        </div>
                        <form action={deleteCharity} className="shrink-0">
                          <input type="hidden" name="id" value={c.id} />

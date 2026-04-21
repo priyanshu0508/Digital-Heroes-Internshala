@@ -225,12 +225,12 @@ export async function processWinnerClaim(formData: FormData) {
 export async function addCharity(formData: FormData) {
   await getAdminUser()
   const name = formData.get('name') as string
-  const details = formData.get('details') as string
+  const description = formData.get('details') as string
   const imageUrl = formData.get('imageUrl') as string || 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb0?w=800&q=80'
 
-  if (!name || !details) redirect('/admin?charityError=Name+and+Mission+are+required')
+  if (!name || !description) redirect('/admin?charityError=Name+and+Mission+are+required')
 
-  const { error } = await supabaseAdmin.from('charities').insert({ name, details, image_url: imageUrl })
+  const { error } = await supabaseAdmin.from('charities').insert({ name, description, image_url: imageUrl })
   
   if (error) {
     console.error("Add charity failed:", error)
