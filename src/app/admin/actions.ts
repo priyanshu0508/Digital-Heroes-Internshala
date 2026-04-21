@@ -23,116 +23,124 @@ async function getAdminUser() {
 }
 
 export async function calculateSimulationData(logicType: 'random' | 'algorithmic') {
-  await getAdminUser()
-  
-  const currentMonth = getMonthYear()
+  try {
+    const adminUser = await getAdminUser()
+    const currentMonth = getMonthYear()
 
-  // 1. Check existing
-  const { data: existing } = await supabaseAdmin
-    .from('draws')
-    .select('id')
-    .eq('month_year', currentMonth)
-    .single()
-  if (existing) return null // Already published
-
-  // 2. Active Subs Pool
-  const { count: activeSubs } = await supabaseAdmin
-    .from('profiles')
-    .select('*', { count: 'exact', head: true })
-    .eq('sub_status', 'active')
-
-  let prizePool = (activeSubs || 0) * 500 // 500 pence
-
-  // 3. Check for Jackpot Rollover (from previous month)
-  // Calculate previous month string
-  const d = new Date()
-  d.setMonth(d.getMonth() - 1)
-  const prevMonth = getMonthYear(d)
-  
-  const { data: prevDraw } = await supabaseAdmin
-    .from('draws')
-    .select('id, prize_pool')
-    .eq('month_year', prevMonth)
-    .single()
-
-  if (prevDraw) {
-     const { count: prev5Match } = await supabaseAdmin
-       .from('winners')
-       .select('*', { count: 'exact', head: true })
-       .eq('draw_id', prevDraw.id)
-       .eq('match_tier', 5)
-       
-     if (prev5Match === 0) {
-       // Rollover 40% of previous pool
-       prizePool += Math.floor(prevDraw.prize_pool * 0.40)
-     }
-  }
-
-  // 4. Generate Numbers based on Logic
-  let winningNumbers: number[] = []
-  
-  const { data: allScores } = await supabaseAdmin.from('scores').select('score, user_id')
-  
-  if (logicType === 'algorithmic' && allScores && allScores.length > 0) {
-     const freqMap = new Map<number, number>()
-     allScores.forEach(s => {
-       freqMap.set(s.score, (freqMap.get(s.score) || 0) + 1)
-     })
-     const sortedFreq = Array.from(freqMap.entries()).sort((a,b) => b[1] - a[1]).map(e => e[0])
-     
-     const topTargets = sortedFreq.slice(0, 3)
-     const standardRng = generateWinningNumbers(5, 1, 45)
-     
-     const merged = Array.from(new Set([...topTargets, ...standardRng])).slice(0, 5)
-     winningNumbers = merged.sort((a, b) => a - b)
-  } else {
-     winningNumbers = generateWinningNumbers(5, 1, 45)
-  }
-
-  // 5. Evaluate Active Users
-  const { data: activeUsers } = await supabaseAdmin.from('profiles').select('id').eq('sub_status', 'active')
-  const activeIds = new Set(activeUsers?.map(u => u.id) || [])
-
-  const userScoreMap = new Map<string, number[]>()
-  allScores?.forEach(s => {
-    if (activeIds.has(s.user_id)) {
-      const arr = userScoreMap.get(s.user_id) || []
-      arr.push(s.score)
-      userScoreMap.set(s.user_id, arr)
+    // 1. Check existing
+    const { data: existing, error: checkError } = await supabaseAdmin
+      .from('draws')
+      .select('id')
+      .eq('month_year', currentMonth)
+      .maybeSingle()
+    
+    if (checkError) {
+      console.error("Simulation database check error:", checkError)
+      return { success: false, error: `Database check failed: ${checkError.message}` }
     }
-  })
-
-  type MatchSummary = { userId: string, match: 3 | 4 | 5 }
-  const winnersList: MatchSummary[] = []
-  let count3 = 0, count4 = 0, count5 = 0
-
-  userScoreMap.forEach((scores, userId) => {
-    const matches = countMatches(scores, winningNumbers)
-    if (matches >= 3) {
-      winnersList.push({ userId, match: matches as 3 | 4 | 5 })
-      if (matches === 3) count3++
-      if (matches === 4) count4++
-      if (matches === 5) count5++
+    
+    if (existing) {
+      return { success: false, error: `A draw has already been published for ${currentMonth}.` }
     }
-  })
 
-  const bronzePool = Math.floor(prizePool * 0.25)
-  const silverPool = Math.floor(prizePool * 0.35)
-  const goldPool = Math.floor(prizePool * 0.40)
+    // 2. Active Subs Pool
+    const { count: activeSubs, error: subsError } = await supabaseAdmin
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('sub_status', 'active')
 
-  return JSON.stringify({
-    month_year: currentMonth,
-    logic_type: logicType,
-    prize_pool: prizePool,
-    winning_numbers: winningNumbers,
-    metrics: { count3, count4, count5 },
-    payouts: {
-      bronze: count3 > 0 ? Math.floor(bronzePool / count3) : 0,
-      silver: count4 > 0 ? Math.floor(silverPool / count4) : 0,
-      gold: count5 > 0 ? Math.floor(goldPool / count5) : 0
-    },
-    winnersList
-  })
+    if (subsError) return { success: false, error: "Failed to fetch active subscribers." }
+    let prizePool = (activeSubs || 0) * 500 // 500 pence per subscriber
+
+    // 3. Rollover Logic
+    const d = new Date()
+    d.setMonth(d.getMonth() - 1)
+    const prevMonth = getMonthYear(d)
+    
+    const { data: prevDraw } = await supabaseAdmin
+      .from('draws')
+      .select('id, prize_pool')
+      .eq('month_year', prevMonth)
+      .maybeSingle()
+
+    if (prevDraw) {
+       const { count: prev5Match } = await supabaseAdmin
+         .from('winners')
+         .select('*', { count: 'exact', head: true })
+         .eq('draw_id', prevDraw.id)
+         .eq('match_tier', 5)
+         
+       if (prev5Match === 0) {
+         prizePool += Math.floor(prevDraw.prize_pool * 0.40)
+       }
+    }
+
+    // 4. Score Logic
+    const { data: allScores, error: scoreError } = await supabaseAdmin.from('scores').select('score, user_id')
+    if (scoreError) return { success: false, error: "Failed to fetch user scores." }
+
+    let winningNumbers: number[] = []
+    if (logicType === 'algorithmic' && allScores && allScores.length > 0) {
+       const freqMap = new Map<number, number>()
+       allScores.forEach(s => freqMap.set(s.score, (freqMap.get(s.score) || 0) + 1))
+       const sortedFreq = Array.from(freqMap.entries()).sort((a,b) => b[1] - a[1]).map(e => e[0])
+       const topTargets = sortedFreq.slice(0, 3)
+       const standardRng = generateWinningNumbers(5, 1, 45)
+       winningNumbers = Array.from(new Set([...topTargets, ...standardRng])).slice(0, 5).sort((a, b) => a - b)
+    } else {
+       winningNumbers = generateWinningNumbers(5, 1, 45)
+    }
+
+    // 5. Evaluate Matches
+    const { data: activeUsers } = await supabaseAdmin.from('profiles').select('id').eq('sub_status', 'active')
+    const activeIds = new Set(activeUsers?.map(u => u.id) || [])
+    const userScoreMap = new Map<string, number[]>()
+    allScores?.forEach(s => {
+      if (activeIds.has(s.user_id)) {
+        const arr = userScoreMap.get(s.user_id) || []
+        arr.push(s.score)
+        userScoreMap.set(s.user_id, arr)
+      }
+    })
+
+    let count3 = 0, count4 = 0, count5 = 0
+    const winnersList: { userId: string, match: 3 | 4 | 5 }[] = []
+
+    userScoreMap.forEach((scores, userId) => {
+      const matches = countMatches(scores, winningNumbers)
+      if (matches >= 3) {
+        winnersList.push({ userId, match: matches as 3 | 4 | 5 })
+        if (matches === 3) count3++
+        else if (matches === 4) count4++
+        else if (matches === 5) count5++
+      }
+    })
+
+    const bronzePool = Math.floor(prizePool * 0.25)
+    const silverPool = Math.floor(prizePool * 0.35)
+    const goldPool = Math.floor(prizePool * 0.40)
+
+    return {
+      success: true,
+      data: {
+        month_year: currentMonth,
+        logic_type: logicType,
+        prize_pool: prizePool,
+        winning_numbers: winningNumbers,
+        metrics: { count3, count4, count5 },
+        payouts: {
+          bronze: count3 > 0 ? Math.floor(bronzePool / count3) : 0,
+          silver: count4 > 0 ? Math.floor(silverPool / count4) : 0,
+          gold: count5 > 0 ? Math.floor(goldPool / count5) : 0
+        },
+        winnersList
+      }
+    }
+  } catch (err: any) {
+    console.error("Simulation critical failure:", err)
+    return { success: false, error: err.message || "An unexpected error occurred during simulation." }
+  }
+}
 }
 
 export async function publishDraw(formData: FormData) {

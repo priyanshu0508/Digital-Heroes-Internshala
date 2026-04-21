@@ -49,19 +49,26 @@ export default async function AdminPage(props: { searchParams: Promise<{ simulat
   const currentMonth = getMonthYear()
 
   // Check if draw already ran for this month
-  const { data: currentDraw } = await supabaseAdmin
+  const { data: currentDraw, error: drawCheckError } = await supabaseAdmin
     .from('draws')
     .select('id')
     .eq('month_year', currentMonth)
-    .single()
+    .maybeSingle() // Use maybeSingle to avoid unnecessary error logging
 
   // Active Simulation State
-  let simulationStr = null
+  let simulationResult: any = null
   let sim = null
+  let simulationError = null
+  
   if (!currentDraw && searchParams?.simulate === 'true') {
     const logic = (searchParams?.logic === 'algorithmic' ? 'algorithmic' : 'random') as 'random' | 'algorithmic'
-    simulationStr = await calculateSimulationData(logic)
-    if (simulationStr) sim = JSON.parse(simulationStr)
+    simulationResult = await calculateSimulationData(logic)
+    
+    if (simulationResult.success) {
+      sim = simulationResult.data
+    } else {
+      simulationError = simulationResult.error
+    }
   }
 
   // Pending Claims
@@ -119,11 +126,19 @@ export default async function AdminPage(props: { searchParams: Promise<{ simulat
                 <h3 className="font-bold flex items-center gap-2 mb-4">
                   <Dices className="w-4 h-4 text-amber-500" /> Draw Engine Interface
                 </h3>
+
+                {simulationError && (
+                  <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400 text-xs">
+                    <XCircle className="w-4 h-4 shrink-0" />
+                    <span>{simulationError}</span>
+                  </div>
+                )}
+
                 {currentDraw ? (
                   <div className="bg-green-500/10 border border-green-500/20 p-4 rounded text-center">
                     <p className="text-sm font-bold text-green-400">Current Month Draw Published!</p>
                   </div>
-                ) : sim && simulationStr ? (
+                ) : sim ? (
                   <div className="space-y-4">
                     <div className="p-3 bg-black/30 rounded border border-[var(--color-border)]">
                        <p className="text-xs text-[var(--color-muted)]">Projected Winners ({sim.logic_type} logic):</p>
@@ -136,7 +151,7 @@ export default async function AdminPage(props: { searchParams: Promise<{ simulat
                        </div>
                     </div>
                     <form action={publishDraw}>
-                      <input type="hidden" name="simulationData" value={simulationStr} />
+                      <input type="hidden" name="simulationData" value={JSON.stringify(sim)} />
                       <button type="submit" className="btn-primary w-full shadow-lg shadow-violet-500/20 py-2 text-sm font-bold hover:shadow-violet-400/40">
                         Confirm & Publish Draw
                       </button>
