@@ -141,7 +141,6 @@ export async function calculateSimulationData(logicType: 'random' | 'algorithmic
     return { success: false, error: err.message || "An unexpected error occurred during simulation." }
   }
 }
-}
 
 export async function publishDraw(formData: FormData) {
   await getAdminUser()
